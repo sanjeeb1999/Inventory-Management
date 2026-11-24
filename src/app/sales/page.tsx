@@ -427,7 +427,7 @@ export default function SalesPage() {
         }
       />
 
-      <section className="stock-summary-grid" aria-label="Sales summary">
+      <section className="stock-summary-grid cols-4" aria-label="Sales summary">
         <div className="kpi-card">
           <p className="kpi-label">Total Sales</p>
           <p className="kpi-value">{totalSales}</p>

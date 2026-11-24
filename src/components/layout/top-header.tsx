@@ -1,11 +1,9 @@
 "use client"
 
-import { getNavItem } from "@/components/layout/nav"
 import { MenuIcon, PanelLeftIcon, UserIcon } from "@/components/layout/icons"
 import { Button } from "@/components/ui/button"
 
 export function TopHeader({
-  pathname,
   sidebarCollapsed,
   onMenuClick,
 }: {
@@ -13,8 +11,6 @@ export function TopHeader({
   sidebarCollapsed: boolean
   onMenuClick: () => void
 }) {
-  const current = getNavItem(pathname)
-
   return (
     <header className="app-topbar">
       <div className="topbar-left">
@@ -36,8 +32,8 @@ export function TopHeader({
           </span>
         </Button>
         <div className="topbar-context">
-          <p className="topbar-eyebrow">Inventory workspace</p>
-          <p className="topbar-title">{current?.label ?? "Overview"}</p>
+          <p className="topbar-eyebrow">SasthaSoft</p>
+          <p className="topbar-title">Inventory Management</p>
         </div>
       </div>
 

@@ -447,7 +447,7 @@ export default function PurchasesPage() {
         }
       />
 
-      <section className="stock-summary-grid" aria-label="Purchases summary">
+      <section className="stock-summary-grid cols-4" aria-label="Purchases summary">
         <div className="kpi-card">
           <p className="kpi-label">Total Purchases</p>
           <p className="kpi-value">{totalPurchases}</p>

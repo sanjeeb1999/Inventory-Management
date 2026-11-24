@@ -152,9 +152,9 @@ export function getLowStockCount(): number {
 
 // Helper: Format currency
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "USD",
+    currency: "INR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount)
@@ -165,7 +165,7 @@ export function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
   if (Number.isNaN(date.getTime())) return "—"
 
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat("en-IN", {
     month: "short",
     day: "numeric",
     year: "numeric",
