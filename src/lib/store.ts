@@ -451,61 +451,124 @@ export function completeSale(saleId: string): SaleMutationResult {
   return { success: true, sale }
 }
 
-// Create a new purchase and update state
-export function createPurchase(purchase: Omit<Purchase, "id" | "date">): Purchase {
-  const id = `p${Date.now()}`
-  const newPurchase: Purchase = {
-    ...purchase,
-    id,
-    date: new Date().toISOString(),
-    status: "pending",
-  }
-
-  state.purchases.push(newPurchase)
-  saveState(state)
-
-  return newPurchase
+export type CreatePurchaseInput = {
+  supplier: string
+  productId: string
+  quantity: number
+  unitCost: number
+  status?: Purchase["status"]
+  date?: string
 }
 
-// Mark a purchase as received and update stock
-export function markPurchaseReceived(purchaseId: string): {
-  success: boolean
-  purchase: Purchase | undefined
-} {
-  const purchaseIndex = state.purchases.findIndex((p) => p.id === purchaseId)
-  if (purchaseIndex === -1) {
-    return { success: false, purchase: undefined }
+export type PurchaseMutationResult =
+  | { success: true; purchase: Purchase }
+  | { success: false; error: string }
+
+function suggestedUnitCost(productId: string): number {
+  const defaults: Record<string, number> = {
+    p1: 28,
+    p2: 75,
+    p3: 110,
+    p4: 95,
+    p5: 7,
+    p6: 22,
+    p7: 160,
+    p8: 105,
+  }
+  return defaults[productId] ?? 15
+}
+
+export function getSuggestedUnitCost(productId: string): number {
+  return suggestedUnitCost(productId)
+}
+
+function validatePurchaseInput(input: CreatePurchaseInput): string | null {
+  if (!input.supplier.trim()) return "Enter a supplier name."
+  if (!input.productId) return "Select a product."
+
+  const product = getProductById(input.productId)
+  if (!product) return "Selected product was not found."
+
+  if (!Number.isFinite(input.quantity) || input.quantity <= 0) {
+    return "Quantity must be greater than zero."
+  }
+  if (!Number.isInteger(input.quantity)) {
+    return "Quantity must be a whole number."
+  }
+  if (!Number.isFinite(input.unitCost) || input.unitCost < 0) {
+    return "Enter a valid unit cost."
   }
 
-  const purchase = state.purchases[purchaseIndex]
+  return null
+}
 
-  // Already received - don't add stock again
-  if (purchase.status === "received") {
-    return { success: false, purchase }
-  }
-
-  // Find the product and increase stock
-  const receivedAt = new Date().toISOString()
+function applyReceivedPurchaseStock(purchase: Purchase, timestamp: string): string | null {
   const product = getProductById(purchase.productId)
-  if (product) {
-    product.currentQuantity += purchase.quantity
-    product.updatedAt = receivedAt
-  }
+  if (!product) return "Selected product was not found."
 
-  // Update purchase status
-  state.purchases[purchaseIndex].status = "received"
+  product.currentQuantity += purchase.quantity
+  product.updatedAt = timestamp
 
-  // Add to recent activity
   const activity: RecentActivity = {
-    id: `a${Date.now()}-2`,
+    id: `a${Date.now()}-purchase`,
     type: "purchase",
     title: "Purchase Received",
-    description: `Received ${purchase.quantity}x ${product?.name || "item"} from ${purchase.supplier}`,
-    timestamp: receivedAt,
-    relatedId: purchaseId,
+    description: `Received ${purchase.quantity}x ${product.name} from ${purchase.supplier}`,
+    timestamp,
+    relatedId: purchase.id,
+  }
+  state.recentActivity.unshift(activity)
+
+  return null
+}
+
+// Create a purchase. Pending does not touch stock; received increases once.
+export function createPurchase(input: CreatePurchaseInput): PurchaseMutationResult {
+  const validationError = validatePurchaseInput(input)
+  if (validationError) return { success: false, error: validationError }
+
+  const status = input.status ?? "pending"
+  const date = input.date || new Date().toISOString()
+  const quantity = Math.floor(input.quantity)
+  const unitCost = input.unitCost
+  const total = Number((quantity * unitCost).toFixed(2))
+
+  const newPurchase: Purchase = {
+    id: `p${Date.now()}`,
+    supplier: input.supplier.trim(),
+    productId: input.productId,
+    quantity,
+    unitCost,
+    total,
+    status,
+    date,
   }
 
-  state.recentActivity.unshift(activity)
+  if (status === "received") {
+    const stockError = applyReceivedPurchaseStock(newPurchase, date)
+    if (stockError) return { success: false, error: stockError }
+  }
+
+  state.purchases.unshift(newPurchase)
+  saveState(state)
+
+  return { success: true, purchase: newPurchase }
+}
+
+// Mark a pending purchase as received once. Already-received is a no-op for stock.
+export function markPurchaseReceived(purchaseId: string): PurchaseMutationResult {
+  const purchase = state.purchases.find((item) => item.id === purchaseId)
+  if (!purchase) return { success: false, error: "Purchase not found." }
+
+  if (purchase.status === "received") {
+    return { success: true, purchase }
+  }
+
+  const receivedAt = new Date().toISOString()
+  const stockError = applyReceivedPurchaseStock(purchase, receivedAt)
+  if (stockError) return { success: false, error: stockError }
+
+  purchase.status = "received"
   saveState(state)
 
   return { success: true, purchase }
@@ -539,11 +602,32 @@ export function updateSaleStatus(
   return { success: true, sale }
 }
 
-// Update a purchase status
-export function updatePurchaseStatus(purchaseId: string, status: Purchase["status"]): Purchase | undefined {
-  const purchase = state.purchases.find((p) => p.id === purchaseId)
-  if (!purchase) return undefined
+// Update a purchase status with one-time stock effects
+export function updatePurchaseStatus(
+  purchaseId: string,
+  status: Purchase["status"]
+): PurchaseMutationResult {
+  const purchase = state.purchases.find((item) => item.id === purchaseId)
+  if (!purchase) return { success: false, error: "Purchase not found." }
+
+  if (purchase.status === status) {
+    return { success: true, purchase }
+  }
+
+  if (purchase.status === "pending" && status === "received") {
+    return markPurchaseReceived(purchaseId)
+  }
+
+  // Do not reverse received stock automatically from this helper.
+  // Status-only changes that would risk double-counting are rejected.
+  if (purchase.status === "received" && status === "pending") {
+    return {
+      success: false,
+      error: "Received purchases cannot be reverted to pending from this screen.",
+    }
+  }
+
   purchase.status = status
   saveState(state)
-  return purchase
+  return { success: true, purchase }
 }
