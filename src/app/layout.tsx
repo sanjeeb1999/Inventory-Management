@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Outfit, Plus_Jakarta_Sans } from "next/font/google"
 import { AppShell } from "@/components/layout/app-shell"
 import "./globals.css"
+import "./dashboard-ui.css"
 import "./module-ui.css"
 
 const plusJakarta = Plus_Jakarta_Sans({
