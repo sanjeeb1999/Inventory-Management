@@ -1,0 +1,314 @@
+/* —— Sales, Purchases, Stock, Reports —— */
+.module-page {
+  display: grid;
+  gap: 1.15rem;
+  min-width: 0;
+}
+
+.module-page .page-header {
+  margin: 0;
+  padding: 0.15rem 0.1rem 0.1rem;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.module-page .page-eyebrow {
+  margin-bottom: 0.28rem;
+}
+
+.module-page .page-title {
+  font-size: 1.85rem;
+  letter-spacing: -0.045em;
+}
+
+.module-page .page-description {
+  margin-top: 0.28rem;
+  font-size: 0.92rem;
+}
+
+.module-page .page-header .btn-primary {
+  border-radius: 999px;
+  background: #0f766e;
+  box-shadow: none;
+}
+
+.module-page .page-header .btn-primary:hover:not(:disabled) {
+  background: #115e59;
+  transform: none;
+}
+
+.module-page .stock-summary-grid,
+.module-page .report-mini-summary {
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.module-page .kpi-card {
+  border: none;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: none;
+  padding: 0.9rem 1rem 0.95rem;
+}
+
+.module-page .kpi-card::before {
+  display: none;
+}
+
+.module-page .kpi-card:hover {
+  transform: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.module-page .kpi-label {
+  margin-bottom: 0.28rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #64748b;
+}
+
+.module-page .kpi-value {
+  font-size: 1.45rem;
+  color: var(--fg);
+}
+
+.module-page .kpi-subtitle {
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.module-page .metric-good {
+  color: #047857;
+}
+
+.module-page .metric-warn {
+  color: #b45309;
+}
+
+.module-page .metric-bad {
+  color: #be123c;
+}
+
+.module-page > .card {
+  padding: 1rem 1.05rem 0.45rem;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  backdrop-filter: none;
+}
+
+.module-page .card-header {
+  margin-bottom: 0.75rem;
+}
+
+.module-page .card-title {
+  font-size: 1.02rem;
+}
+
+.module-page .card-description {
+  font-size: 0.82rem;
+}
+
+.module-page .badge-neutral {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.module-page .filter-bar {
+  margin-bottom: 0.35rem;
+  padding: 0 0 0.8rem;
+  border: none;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.module-page .filter-input,
+.module-page .form-control {
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.module-page .table-wrap {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.module-page .table th {
+  padding: 0.55rem 0.7rem 0.65rem;
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #64748b;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.module-page .table td {
+  padding: 0.78rem 0.7rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+  font-weight: 500;
+}
+
+.module-page .table td:first-child {
+  font-weight: 650;
+}
+
+.module-page .table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.module-page .data-stack,
+.module-page .dashboard-product-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.module-page .data-title {
+  font-size: 0.92rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--fg);
+}
+
+.module-page .data-meta,
+.module-page .dashboard-muted-meta {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.module-page .cell-id {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.module-page .cell-money {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.module-page .qty-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.module-page .qty-figure strong {
+  font-size: 0.98rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.module-page .qty-figure span,
+.module-page .qty-unit {
+  font-size: 0.72rem;
+  font-weight: 550;
+  color: #94a3b8;
+}
+
+.module-page .status-badge {
+  padding: 0.16rem 0.5rem 0.16rem 0.42rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+}
+
+.module-page .status-badge::before {
+  content: "";
+  width: 0.36rem;
+  height: 0.36rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.module-page .link-action {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: #0f766e;
+  padding-right: 0.15rem;
+  padding-left: 0.15rem;
+}
+
+.module-page .link-action:hover:not(:disabled) {
+  background: rgba(15, 118, 110, 0.08);
+  color: #115e59;
+}
+
+.module-page .report-tabs {
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.22rem;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  background: #fff;
+  box-shadow: none;
+}
+
+.module-page .report-tab {
+  border-radius: 9px;
+}
+
+.module-page .report-tab.active {
+  background: #f0fdfa;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.module-page .report-mini-summary {
+  margin-bottom: 0.9rem;
+}
+
+@media (min-width: 720px) {
+  .module-page .stock-summary-grid.cols-4,
+  .module-page .report-mini-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .module-page .stock-summary-grid:not(.cols-4) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .module-page .page-header {
+    align-items: center;
+  }
+
+  .module-page .stock-summary-grid.cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .module-page .stock-summary-grid:not(.cols-4) {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .module-page .report-mini-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
