@@ -1,14 +1,16 @@
 "use client"
 
 import { getNavItem } from "@/components/layout/nav"
-import { MenuIcon, UserIcon } from "@/components/layout/icons"
+import { MenuIcon, PanelLeftIcon, UserIcon } from "@/components/layout/icons"
 import { Button } from "@/components/ui/button"
 
 export function TopHeader({
   pathname,
+  sidebarCollapsed,
   onMenuClick,
 }: {
   pathname: string
+  sidebarCollapsed: boolean
   onMenuClick: () => void
 }) {
   const current = getNavItem(pathname)
@@ -22,9 +24,16 @@ export function TopHeader({
           size="sm"
           className="topbar-menu-btn"
           onClick={onMenuClick}
-          aria-label="Open navigation"
+          aria-label={
+            sidebarCollapsed ? "Expand navigation" : "Toggle navigation"
+          }
         >
-          <MenuIcon />
+          <span className="topbar-menu-mobile">
+            <MenuIcon />
+          </span>
+          <span className="topbar-menu-desktop">
+            <PanelLeftIcon />
+          </span>
         </Button>
         <div className="topbar-context">
           <p className="topbar-eyebrow">Inventory workspace</p>
@@ -33,6 +42,10 @@ export function TopHeader({
       </div>
 
       <div className="topbar-right">
+        <div className="topbar-status">
+          <span className="topbar-status-dot" aria-hidden />
+          Systems live
+        </div>
         <div className="topbar-user">
           <div className="topbar-avatar" aria-hidden>
             <UserIcon width={16} height={16} />

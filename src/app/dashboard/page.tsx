@@ -185,6 +185,7 @@ export default function DashboardPage() {
     <div className="dashboard-page">
       <PageHeader
         title="Dashboard"
+        eyebrow="Operations overview"
         description="Stock levels, alerts, and recent inventory activity"
         actions={
           <>
@@ -197,6 +198,41 @@ export default function DashboardPage() {
           </>
         }
       />
+
+      <section className="dashboard-hero" aria-label="Workspace snapshot">
+        <div className="dashboard-hero-top">
+          <div>
+            <p className="dashboard-hero-eyebrow">Live inventory pulse</p>
+            <h2 className="dashboard-hero-title">
+              Keep stock healthy across sales and purchases
+            </h2>
+            <p className="dashboard-hero-copy">
+              Completed sales reduce stock once. Received purchases increase stock once.
+              Low-stock items surface here automatically.
+            </p>
+          </div>
+        </div>
+        <div className="dashboard-hero-stats">
+          <div className="dashboard-hero-stat">
+            <p className="dashboard-hero-stat-label">Catalog</p>
+            <p className="dashboard-hero-stat-value">
+              {kpis.totalProducts.toLocaleString()}
+            </p>
+          </div>
+          <div className="dashboard-hero-stat">
+            <p className="dashboard-hero-stat-label">On hand</p>
+            <p className="dashboard-hero-stat-value">
+              {kpis.totalStockQuantity.toLocaleString()}
+            </p>
+          </div>
+          <div className="dashboard-hero-stat">
+            <p className="dashboard-hero-stat-label">Alerts</p>
+            <p className="dashboard-hero-stat-value">
+              {kpis.lowStockItems.toLocaleString()}
+            </p>
+          </div>
+        </div>
+      </section>
 
       <section className="dashboard-kpi-grid" aria-label="Key metrics">
         <KPICard

@@ -91,6 +91,23 @@ export function CloseIcon(props: IconProps) {
   )
 }
 
+export function PanelLeftIcon(props: IconProps) {
+  return (
+    <svg {...baseProps(props)}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16" />
+    </svg>
+  )
+}
+
+export function ChevronLeftIcon(props: IconProps) {
+  return (
+    <svg {...baseProps(props)}>
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  )
+}
+
 export function UserIcon(props: IconProps) {
   return (
     <svg {...baseProps(props)}>

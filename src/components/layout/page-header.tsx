@@ -5,16 +5,19 @@ export function PageHeader({
   title,
   description,
   actions,
+  eyebrow = "Workspace",
   className,
 }: {
   title: string
   description?: string
   actions?: ReactNode
+  eyebrow?: string
   className?: string
 }) {
   return (
     <div className={cn("page-header", className)}>
       <div className="page-header-copy">
+        <p className="page-eyebrow">{eyebrow}</p>
         <h1 className="page-title">{title}</h1>
         {description ? (
           <p className="page-description">{description}</p>

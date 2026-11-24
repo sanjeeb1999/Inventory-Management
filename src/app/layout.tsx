@@ -1,11 +1,17 @@
 import type { Metadata } from "next"
-import { DM_Sans } from "next/font/google"
+import { Outfit, Plus_Jakarta_Sans } from "next/font/google"
 import { AppShell } from "@/components/layout/app-shell"
 import "./globals.css"
 
-const dmSans = DM_Sans({
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
+  display: "swap",
+})
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  variable: "--font-display",
   display: "swap",
 })
 
@@ -21,7 +27,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${dmSans.variable} antialiased`}>
+      <body className={`${plusJakarta.variable} ${outfit.variable} antialiased`}>
         <AppShell>{children}</AppShell>
       </body>
     </html>

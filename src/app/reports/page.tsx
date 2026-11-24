@@ -1,318 +1,589 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import {
   formatCurrency,
   formatDate,
   getDashboardKPIs,
+  getLowStockCount,
+  getProductById,
+  getProductCategories,
   getStockStatusClass,
-  getTotalSalesAmount,
   getTotalPurchasesAmount,
+  getTotalSalesAmount,
   state,
+  subscribeToStore,
 } from "@/lib/store"
-import { type DashboardKPIs } from "@/types"
 import { PageHeader } from "@/components/layout/page-header"
-import { Button } from "@/components/ui/button"
-import { StatusBadge } from "@/components/ui/badge"
+import { Badge, StatusBadge } from "@/components/ui/badge"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
-// --- Reports Page ---
+type ReportTab = "stock" | "sales" | "purchases"
+type DateFilter = "all" | "month" | "week"
+
+function EmptyBlock({
+  title,
+  description,
+}: {
+  title: string
+  description: string
+}) {
+  return (
+    <div className="dashboard-empty">
+      <p className="dashboard-empty-title">{title}</p>
+      <p className="dashboard-empty-copy">{description}</p>
+    </div>
+  )
+}
+
+function matchesDateFilter(
+  isoDate: string,
+  dateFilter: DateFilter,
+  monthKey: string,
+  weekStartKey: string
+): boolean {
+  const day = isoDate.slice(0, 10)
+  const month = isoDate.slice(0, 7)
+
+  if (dateFilter === "all") return true
+  if (dateFilter === "month") return !monthKey || month === monthKey
+  if (dateFilter === "week") return !weekStartKey || day >= weekStartKey
+  return true
+}
+
+function ReportTabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      className={`report-tab ${active ? "active" : ""}`}
+      onClick={onClick}
+      aria-pressed={active}
+    >
+      {children}
+    </button>
+  )
+}
+
 export default function ReportsPage() {
-  const [timeRange, setTimeRange] = useState("all") // all, month, week, year
-  const [exportLoading, setExportLoading] = useState(false)
+  const [, setRevision] = useState(0)
+  const [activeTab, setActiveTab] = useState<ReportTab>("stock")
 
-  // Compute KPIs from shared state
-  const kpis: DashboardKPIs = getDashboardKPIs()
+  const [stockSearch, setStockSearch] = useState("")
+  const [stockCategory, setStockCategory] = useState("")
+  const [stockStatus, setStockStatus] = useState("")
+
+  const [salesSearch, setSalesSearch] = useState("")
+  const [salesStatus, setSalesStatus] = useState("")
+  const [salesDateFilter, setSalesDateFilter] = useState<DateFilter>("all")
+
+  const [purchaseSearch, setPurchaseSearch] = useState("")
+  const [purchaseStatus, setPurchaseStatus] = useState("")
+  const [purchaseDateFilter, setPurchaseDateFilter] = useState<DateFilter>("all")
+
+  const [monthKey, setMonthKey] = useState("")
+  const [weekStartKey, setWeekStartKey] = useState("")
+
+  useEffect(() => {
+    return subscribeToStore(() => setRevision((value) => value + 1))
+  }, [])
+
+  useEffect(() => {
+    const now = new Date()
+    setMonthKey(now.toISOString().slice(0, 7))
+    const weekStart = new Date(now)
+    weekStart.setUTCDate(now.getUTCDate() - 6)
+    setWeekStartKey(weekStart.toISOString().slice(0, 10))
+  }, [])
+
+  const kpis = getDashboardKPIs()
+  const lowStockCount = getLowStockCount()
   const totalSalesAmount = getTotalSalesAmount()
   const totalPurchasesAmount = getTotalPurchasesAmount()
+  const categories = getProductCategories()
 
-  // Sales by status
-  const salesByStatus = {
-    completed: state.sales.filter((s) => s.status === "completed").length,
-    pending: state.sales.filter((s) => s.status === "pending").length,
-  }
+  const completedSalesAmount = state.sales
+    .filter((sale) => sale.status === "completed")
+    .reduce((sum, sale) => sum + sale.total, 0)
 
-  // Purchases by status
-  const purchasesByStatus = {
-    received: state.purchases.filter((p) => p.status === "received").length,
-    pending: state.purchases.filter((p) => p.status === "pending").length,
-  }
+  const receivedPurchasesAmount = state.purchases
+    .filter((purchase) => purchase.status === "received")
+    .reduce((sum, purchase) => sum + purchase.total, 0)
+
+  const stockQuery = stockSearch.trim().toLowerCase()
+  const filteredProducts = state.products.filter((product) => {
+    const status = getStockStatusClass(
+      product.currentQuantity,
+      product.minStockLevel
+    )
+    const matchesSearch =
+      !stockQuery ||
+      product.name.toLowerCase().includes(stockQuery) ||
+      product.sku.toLowerCase().includes(stockQuery) ||
+      product.category.toLowerCase().includes(stockQuery)
+    const matchesCategory = !stockCategory || product.category === stockCategory
+    const matchesStatus = !stockStatus || status === stockStatus
+    return matchesSearch && matchesCategory && matchesStatus
+  })
+
+  const salesQuery = salesSearch.trim().toLowerCase()
+  const filteredSales = state.sales.filter((sale) => {
+    const product = getProductById(sale.productId)
+    const matchesSearch =
+      !salesQuery ||
+      sale.id.toLowerCase().includes(salesQuery) ||
+      sale.customer.toLowerCase().includes(salesQuery) ||
+      (product?.name || "").toLowerCase().includes(salesQuery) ||
+      (product?.sku || "").toLowerCase().includes(salesQuery)
+    const matchesStatus = !salesStatus || sale.status === salesStatus
+    const matchesDate = matchesDateFilter(
+      sale.date,
+      salesDateFilter,
+      monthKey,
+      weekStartKey
+    )
+    return matchesSearch && matchesStatus && matchesDate
+  })
+
+  const purchaseQuery = purchaseSearch.trim().toLowerCase()
+  const filteredPurchases = state.purchases.filter((purchase) => {
+    const product = getProductById(purchase.productId)
+    const matchesSearch =
+      !purchaseQuery ||
+      purchase.id.toLowerCase().includes(purchaseQuery) ||
+      purchase.supplier.toLowerCase().includes(purchaseQuery) ||
+      (product?.name || "").toLowerCase().includes(purchaseQuery) ||
+      (product?.sku || "").toLowerCase().includes(purchaseQuery)
+    const matchesStatus = !purchaseStatus || purchase.status === purchaseStatus
+    const matchesDate = matchesDateFilter(
+      purchase.date,
+      purchaseDateFilter,
+      monthKey,
+      weekStartKey
+    )
+    return matchesSearch && matchesStatus && matchesDate
+  })
 
   return (
-    <div>
+    <div className="reports-page">
       <PageHeader
         title="Reports"
-        description="Business reports and summaries"
-        actions={
-          <>
-            <Select
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-              className="filter-input"
-              aria-label="Time range"
-            >
-              <option value="all">All time</option>
-              <option value="week">This week</option>
-              <option value="month">This month</option>
-              <option value="year">This year</option>
-            </Select>
-            <Button
-              variant="secondary"
-              disabled={exportLoading}
-              onClick={() => {
-                setExportLoading(true)
-                window.setTimeout(() => setExportLoading(false), 600)
-              }}
-            >
-              {exportLoading ? "Preparing..." : "Export"}
-            </Button>
-          </>
-        }
+        description="Live inventory, sales, and purchase reports from the shared store"
       />
 
-      <div className="content-grid cols-4 mb-6">
+      <section className="stock-summary-grid" aria-label="Report summary">
         <div className="kpi-card">
           <p className="kpi-label">Total Products</p>
           <p className="kpi-value">{kpis.totalProducts}</p>
         </div>
         <div className="kpi-card">
-          <p className="kpi-label">Total Stock Qty</p>
-          <p className="kpi-value text-[var(--success)]">
+          <p className="kpi-label">Current Stock Qty</p>
+          <p className="kpi-value">
             {kpis.totalStockQuantity.toLocaleString()}
           </p>
         </div>
         <div className="kpi-card">
           <p className="kpi-label">Total Sales</p>
           <p className="kpi-value text-[var(--accent)]">
-            {formatCurrency(getTotalSalesAmount())}
+            {formatCurrency(totalSalesAmount)}
           </p>
         </div>
         <div className="kpi-card">
           <p className="kpi-label">Total Purchases</p>
           <p className="kpi-value text-[var(--accent)]">
-            {formatCurrency(getTotalPurchasesAmount())}
+            {formatCurrency(totalPurchasesAmount)}
           </p>
         </div>
+        <div className="kpi-card">
+          <p className="kpi-label">Low Stock Items</p>
+          <p className="kpi-value text-[var(--warning)]">{lowStockCount}</p>
+        </div>
+      </section>
+
+      <div className="report-tabs" role="tablist" aria-label="Report sections">
+        <ReportTabButton
+          active={activeTab === "stock"}
+          onClick={() => setActiveTab("stock")}
+        >
+          Stock Report
+        </ReportTabButton>
+        <ReportTabButton
+          active={activeTab === "sales"}
+          onClick={() => setActiveTab("sales")}
+        >
+          Sales Report
+        </ReportTabButton>
+        <ReportTabButton
+          active={activeTab === "purchases"}
+          onClick={() => setActiveTab("purchases")}
+        >
+          Purchase Report
+        </ReportTabButton>
       </div>
 
-      <div className="card mb-6">
-        <h2 className="card-title mb-1">Sales Report</h2>
-        <p className="card-description mb-4">Sales performance summary</p>
+      {activeTab === "stock" ? (
+        <Card>
+          <CardHeader className="dashboard-card-header">
+            <div>
+              <CardTitle>Stock Report</CardTitle>
+              <CardDescription>
+                Current inventory levels and stock status
+              </CardDescription>
+            </div>
+            <Badge tone="neutral">{filteredProducts.length} shown</Badge>
+          </CardHeader>
+          <CardContent>
+            <div className="filter-bar stock-filter-bar">
+              <Input
+                type="search"
+                value={stockSearch}
+                onChange={(event) => setStockSearch(event.target.value)}
+                placeholder="Search product, SKU, or category..."
+                className="filter-input stock-search-input"
+                aria-label="Search stock report"
+              />
+              <Select
+                value={stockCategory}
+                onChange={(event) => setStockCategory(event.target.value)}
+                className="filter-input"
+                aria-label="Filter stock by category"
+              >
+                <option value="">All categories</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                value={stockStatus}
+                onChange={(event) => setStockStatus(event.target.value)}
+                className="filter-input"
+                aria-label="Filter stock by status"
+              >
+                <option value="">All statuses</option>
+                <option value="in-stock">In Stock</option>
+                <option value="low-stock">Low Stock</option>
+                <option value="out-of-stock">Out of Stock</option>
+              </Select>
+            </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          <div>
-            <p className="text-xs text-[var(--muted)] uppercase tracking-wider">Total Sales</p>
-            <p className="text-lg font-bold text-[var(--fg)]">
-              {state.sales.length}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-[var(--muted)] uppercase tracking-wider">Completed</p>
-            <p className="text-lg font-bold text-[var(--success)]">
-              {salesByStatus.completed}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-[var(--muted)] uppercase tracking-wider">Pending</p>
-            <p className="text-lg font-bold text-[var(--warning)]">
-              {salesByStatus.pending}
-            </p>
-          </div>
-        </div>
-
-        <div className="card p-4 mb-4">
-          <p className="text-sm text-[var(--muted)]">
-            Total Sales Amount: {formatCurrency(totalSalesAmount)}
-          </p>
-        </div>
-
-        <div className="table-wrap">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Invoice ID</th>
-              <th>Customer</th>
-              <th>Product</th>
-              <th>Quantity</th>
-              <th>Amount</th>
-              <th>Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {state.sales.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="empty-state">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  >
-                    <path d="M21 15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h11l5 5z" />
-                    <circle cx="3" cy="18" r="2" />
-                    <circle cx="21" cy="18" r="2" />
-                  </svg>
-                  <p className="mt-2 text-[var(--muted)]">No sales found</p>
-                </td>
-              </tr>
-            ) : (
-              state.sales.slice(0, 5).map((sale) => {
-                const product = state.products.find((p) => p.id === sale.productId)
-                return (
-                  <tr key={sale.id}>
-                    <td>{sale.id}</td>
-                    <td>{sale.customer}</td>
-                    <td>{product?.name || "Unknown"}</td>
-                    <td>{sale.quantity} {product?.unit || ""}</td>
-                    <td>{formatCurrency(sale.total)}</td>
-                    <td>{formatDate(sale.date)}</td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
-        </div>
-      </div>
-
-      <div className="card mb-6">
-        <h2 className="card-title mb-1">Purchase Report</h2>
-        <p className="card-description mb-4">Purchase order summary</p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          <div>
-            <p className="text-xs text-[var(--muted)] uppercase tracking-wider">Total Purchases</p>
-            <p className="text-lg font-bold text-[var(--fg)]">
-              {state.purchases.length}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-[var(--muted)] uppercase tracking-wider">Received</p>
-            <p className="text-lg font-bold text-[var(--success)]">
-              {purchasesByStatus.received}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-[var(--muted)] uppercase tracking-wider">Pending</p>
-            <p className="text-lg font-bold text-[var(--warning)]">
-              {purchasesByStatus.pending}
-            </p>
-          </div>
-        </div>
-
-        <div className="card p-4 mb-4">
-          <p className="text-sm text-[var(--muted)]">
-            Total Purchases Amount: {formatCurrency(totalPurchasesAmount)}
-          </p>
-        </div>
-
-        <div className="table-wrap">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Purchase ID</th>
-              <th>Supplier</th>
-              <th>Product</th>
-              <th>Quantity</th>
-              <th>Amount</th>
-              <th>Status</th>
-              <th>Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {state.purchases.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="empty-state">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  >
-                    <path d="M21 15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h11l5 5z" />
-                    <circle cx="3" cy="18" r="2" />
-                    <circle cx="21" cy="18" r="2" />
-                  </svg>
-                  <p className="mt-2 text-[var(--muted)]">No purchases found</p>
-                </td>
-              </tr>
-            ) : (
-              state.purchases.slice(0, 5).map((purchase) => {
-                const product = state.products.find((p) => p.id === purchase.productId)
-                return (
-                  <tr key={purchase.id}>
-                    <td>{purchase.id}</td>
-                    <td>{purchase.supplier}</td>
-                    <td>{product?.name || "Unknown"}</td>
-                    <td>{purchase.quantity} {product?.unit || ""}</td>
-                    <td>{formatCurrency(purchase.total)}</td>
-                    <td>
-                      <StatusBadge status={purchase.status} />
-                    </td>
-                    <td>{formatDate(purchase.date)}</td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
-        </div>
-      </div>
-
-      <div className="card">
-        <h2 className="card-title mb-1">Stock Report</h2>
-        <p className="card-description mb-4">
-          Current inventory levels and stock status
-        </p>
-
-        <div className="table-wrap">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>Category</th>
-              <th>Current Stock</th>
-              <th>Minimum Level</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
             {state.products.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="empty-state">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                  >
-                    <path d="M21 15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h11l5 5z" />
-                    <circle cx="3" cy="18" r="2" />
-                    <circle cx="21" cy="18" r="2" />
-                  </svg>
-                  <p className="mt-2 text-[var(--muted)]">No products found</p>
-                </td>
-              </tr>
+              <EmptyBlock
+                title="No products in inventory"
+                description="Stock data will appear here once products exist in the shared store."
+              />
+            ) : filteredProducts.length === 0 ? (
+              <EmptyBlock
+                title="No matching stock records"
+                description="Try adjusting search or stock filters."
+              />
             ) : (
-              state.products.map((product) => {
-                const status = getStockStatusClass(product.currentQuantity, product.minStockLevel)
-                return (
-                  <tr key={product.id}>
-                    <td>{product.name}</td>
-                    <td>{product.category}</td>
-                    <td>{product.currentQuantity} {product.unit}</td>
-                    <td>{product.minStockLevel}</td>
-                    <td>
-                      <StatusBadge status={status} />
-                    </td>
-                  </tr>
-                )
-              })
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Current Qty</TableHead>
+                    <TableHead>Minimum</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Last Updated</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredProducts.map((product) => {
+                    const status = getStockStatusClass(
+                      product.currentQuantity,
+                      product.minStockLevel
+                    )
+                    return (
+                      <TableRow key={product.id}>
+                        <TableCell>{product.name}</TableCell>
+                        <TableCell>{product.sku}</TableCell>
+                        <TableCell>{product.category}</TableCell>
+                        <TableCell>
+                          {product.currentQuantity} {product.unit}
+                        </TableCell>
+                        <TableCell>
+                          {product.minStockLevel} {product.unit}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={status} />
+                        </TableCell>
+                        <TableCell>{formatDate(product.updatedAt)}</TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
             )}
-          </tbody>
-        </table>
-        </div>
-      </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {activeTab === "sales" ? (
+        <Card>
+          <CardHeader className="dashboard-card-header">
+            <div>
+              <CardTitle>Sales Report</CardTitle>
+              <CardDescription>
+                Sales orders from the shared store
+              </CardDescription>
+            </div>
+            <Badge tone="neutral">{filteredSales.length} shown</Badge>
+          </CardHeader>
+          <CardContent>
+            <div className="report-mini-summary mb-4">
+              <div className="kpi-card">
+                <p className="kpi-label">Orders</p>
+                <p className="kpi-value">{state.sales.length}</p>
+              </div>
+              <div className="kpi-card">
+                <p className="kpi-label">Total Sales Amount</p>
+                <p className="kpi-value text-[var(--accent)]">
+                  {formatCurrency(totalSalesAmount)}
+                </p>
+              </div>
+              <div className="kpi-card">
+                <p className="kpi-label">Completed Amount</p>
+                <p className="kpi-value text-[var(--success)]">
+                  {formatCurrency(completedSalesAmount)}
+                </p>
+              </div>
+            </div>
+
+            <div className="filter-bar stock-filter-bar">
+              <Input
+                type="search"
+                value={salesSearch}
+                onChange={(event) => setSalesSearch(event.target.value)}
+                placeholder="Search invoice, customer, or product..."
+                className="filter-input stock-search-input"
+                aria-label="Search sales report"
+              />
+              <Select
+                value={salesStatus}
+                onChange={(event) => setSalesStatus(event.target.value)}
+                className="filter-input"
+                aria-label="Filter sales by status"
+              >
+                <option value="">All statuses</option>
+                <option value="completed">Completed</option>
+                <option value="pending">Pending</option>
+              </Select>
+              <Select
+                value={salesDateFilter}
+                onChange={(event) =>
+                  setSalesDateFilter(event.target.value as DateFilter)
+                }
+                className="filter-input"
+                aria-label="Filter sales by date"
+              >
+                <option value="all">All dates</option>
+                <option value="week">Last 7 days</option>
+                <option value="month">This month</option>
+              </Select>
+            </div>
+
+            {state.sales.length === 0 ? (
+              <EmptyBlock
+                title="No sales recorded"
+                description="Completed and pending sales will appear here from the shared store."
+              />
+            ) : filteredSales.length === 0 ? (
+              <EmptyBlock
+                title="No matching sales"
+                description="Try adjusting search, status, or date filters."
+              />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Qty</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredSales.map((sale) => {
+                    const product = getProductById(sale.productId)
+                    return (
+                      <TableRow key={sale.id}>
+                        <TableCell>{sale.id}</TableCell>
+                        <TableCell>{sale.customer}</TableCell>
+                        <TableCell>
+                          <div className="dashboard-product-cell">
+                            <span>{product?.name || "Unknown product"}</span>
+                            <span className="dashboard-muted-meta">
+                              {product?.sku || sale.productId}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {sale.quantity} {product?.unit || ""}
+                        </TableCell>
+                        <TableCell>{formatCurrency(sale.total)}</TableCell>
+                        <TableCell>
+                          <StatusBadge status={sale.status} />
+                        </TableCell>
+                        <TableCell>{formatDate(sale.date)}</TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {activeTab === "purchases" ? (
+        <Card>
+          <CardHeader className="dashboard-card-header">
+            <div>
+              <CardTitle>Purchase Report</CardTitle>
+              <CardDescription>
+                Purchase orders from the shared store
+              </CardDescription>
+            </div>
+            <Badge tone="neutral">{filteredPurchases.length} shown</Badge>
+          </CardHeader>
+          <CardContent>
+            <div className="report-mini-summary mb-4">
+              <div className="kpi-card">
+                <p className="kpi-label">Orders</p>
+                <p className="kpi-value">{state.purchases.length}</p>
+              </div>
+              <div className="kpi-card">
+                <p className="kpi-label">Total Purchase Amount</p>
+                <p className="kpi-value text-[var(--accent)]">
+                  {formatCurrency(totalPurchasesAmount)}
+                </p>
+              </div>
+              <div className="kpi-card">
+                <p className="kpi-label">Received Amount</p>
+                <p className="kpi-value text-[var(--success)]">
+                  {formatCurrency(receivedPurchasesAmount)}
+                </p>
+              </div>
+            </div>
+
+            <div className="filter-bar stock-filter-bar">
+              <Input
+                type="search"
+                value={purchaseSearch}
+                onChange={(event) => setPurchaseSearch(event.target.value)}
+                placeholder="Search purchase ID, supplier, or product..."
+                className="filter-input stock-search-input"
+                aria-label="Search purchase report"
+              />
+              <Select
+                value={purchaseStatus}
+                onChange={(event) => setPurchaseStatus(event.target.value)}
+                className="filter-input"
+                aria-label="Filter purchases by status"
+              >
+                <option value="">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="received">Received</option>
+              </Select>
+              <Select
+                value={purchaseDateFilter}
+                onChange={(event) =>
+                  setPurchaseDateFilter(event.target.value as DateFilter)
+                }
+                className="filter-input"
+                aria-label="Filter purchases by date"
+              >
+                <option value="all">All dates</option>
+                <option value="week">Last 7 days</option>
+                <option value="month">This month</option>
+              </Select>
+            </div>
+
+            {state.purchases.length === 0 ? (
+              <EmptyBlock
+                title="No purchases recorded"
+                description="Pending and received purchases will appear here from the shared store."
+              />
+            ) : filteredPurchases.length === 0 ? (
+              <EmptyBlock
+                title="No matching purchases"
+                description="Try adjusting search, status, or date filters."
+              />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Purchase ID</TableHead>
+                    <TableHead>Supplier</TableHead>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Qty</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPurchases.map((purchase) => {
+                    const product = getProductById(purchase.productId)
+                    return (
+                      <TableRow key={purchase.id}>
+                        <TableCell>{purchase.id}</TableCell>
+                        <TableCell>{purchase.supplier}</TableCell>
+                        <TableCell>
+                          <div className="dashboard-product-cell">
+                            <span>{product?.name || "Unknown product"}</span>
+                            <span className="dashboard-muted-meta">
+                              {product?.sku || purchase.productId}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {purchase.quantity} {product?.unit || ""}
+                        </TableCell>
+                        <TableCell>{formatCurrency(purchase.total)}</TableCell>
+                        <TableCell>
+                          <StatusBadge status={purchase.status} />
+                        </TableCell>
+                        <TableCell>{formatDate(purchase.date)}</TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   )
 }
